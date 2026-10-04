@@ -398,7 +398,10 @@ CUSTOM_CVAR (Float, bgamma, 1.f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 static MiniModeInfo WinModes[] =
 {
 	{ 320, 200 },
-#ifndef MISTER_HYBRID
+#ifdef MISTER_HYBRID
+	// the video modes of the core
+	{ 640, 200 }
+#else
 	{ 320, 240 },
 	{ 400, 225 },	// 16:9
 	{ 400, 300 },
@@ -690,6 +693,12 @@ SDLFB::SDLFB (int width, int height, bool fullscreen)
 	UpdatePending = false;
 	NotPaletted = false;
 	FlashAmount = 0;
+
+#ifdef MISTER_HYBRID
+	// The size of the window picks the core's video mode: never the size of
+	// the desktop
+	fullscreen = false;
+#endif
 
 #if SDL_VERSION_ATLEAST(2,0,0)
 	Renderer = NULL;
@@ -1061,6 +1070,9 @@ void SDLFB::SetFullscreen (bool fullscreen)
 {
 #ifdef __ANDROID__
 	fullscreen = true;
+#endif
+#ifdef MISTER_HYBRID
+	fullscreen = false;
 #endif
 
 #if SDL_VERSION_ATLEAST(2,0,0)

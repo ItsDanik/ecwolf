@@ -13,6 +13,30 @@
 extern int viewshift;
 extern fixed viewz;
 
+// The colour of a floor or ceiling that is of one colour all over the map, as
+// in Wolfenstein 3D: there is no tile and no texel to look up for its pixels.
+static bool SolidPlaneColor(bool floor, byte &color)
+{
+	FTextureID floortex, ceilingtex;
+	if(!map->GetUniformFlats(floortex, ceilingtex))
+		return false;
+
+	FTexture * const texture = TexMan(floor ? floortex : ceilingtex);
+	if(!texture)
+		return false;
+	const byte * const pixels = texture->GetPixels();
+	for(unsigned int i = texture->GetWidth()*texture->GetHeight();i-- > 1;)
+	{
+		if(pixels[i] != pixels[0])
+			return false;
+	}
+	// colour 0 of a texture with holes is a hole
+	if(texture->bMasked && pixels[0] == 0)
+		return false;
+	color = pixels[0];
+	return true;
+}
+
 static void R_DrawPlane(byte *vbuf, unsigned vbufPitch, int min_wallheight, int halfheight, fixed planeheight)
 {
 	fixed dist;                                // distance to row projection
@@ -63,6 +87,70 @@ static void R_DrawPlane(byte *vbuf, unsigned vbufPitch, int min_wallheight, int 
 
 	unsigned int oldmapx = INT_MAX, oldmapy = INT_MAX;
 	const byte* curshades = NormalLight.Maps;
+
+	byte solid;
+	if(SolidPlaneColor(floor, solid))
+	{
+		// The same rows, shades and pixels as below. The first row of the
+		// plane in every column, and the first and the last of those in
+		// every block of columns: most blocks are in a row as a whole or
+		// not at all.
+		enum { BLOCK = 16 };
+		static TArray<int> planestart, blockmin, blockmax;
+		const int blocks = (viewwidth + BLOCK - 1)/BLOCK;
+		planestart.Resize(viewwidth);
+		blockmin.Resize(blocks);
+		blockmax.Resize(blocks);
+		for(int b = 0;b < blocks;++b)
+		{
+			blockmin[b] = INT_MAX;
+			blockmax[b] = INT_MIN;
+		}
+		for(int x = 0;x < viewwidth;++x)
+		{
+			const int start = planestart[x] = (wallheight[x]*heightFactor)>>FRACBITS;
+			if(start < blockmin[x/BLOCK]) blockmin[x/BLOCK] = start;
+			if(start > blockmax[x/BLOCK]) blockmax[x/BLOCK] = start;
+		}
+
+		for(int y = y0;floor ? y+halfheight < viewheight : y < halfheight; ++y, tex_offset += tex_offsetPitch + viewwidth)
+		{
+			if(floor ? (y+halfheight < 0) : (y < halfheight - viewheight))
+				continue;
+
+			const int shade = LIGHT2SHADE(gLevelLight + r_extralight);
+			const int tz = FixedMul(FixedDiv(r_depthvisibility, abs(planeheight)), abs(((halfheight)<<16) - ((halfheight-y)<<16)));
+			const byte color = NormalLight.Maps[(GETPALOOKUP(tz, shade)<<8) + solid];
+
+			int run = -1; // where the blocks that are in the row as a whole begin
+			for(int b = 0;b < blocks;++b)
+			{
+				if(blockmax[b] <= y)
+				{
+					if(run < 0)
+						run = b*BLOCK;
+					continue;
+				}
+				if(run >= 0)
+				{
+					memset(tex_offset + run, color, b*BLOCK - run);
+					run = -1;
+				}
+				if(blockmin[b] <= y)
+				{
+					const int end = MIN<int>((b + 1)*BLOCK, viewwidth);
+					for(int x = b*BLOCK;x < end;++x)
+					{
+						if(planestart[x] <= y)
+							tex_offset[x] = color;
+					}
+				}
+			}
+			if(run >= 0)
+				memset(tex_offset + run, color, viewwidth - run);
+		}
+		return;
+	}
 	// draw horizontal lines
 	for(int y = y0;floor ? y+halfheight < viewheight : y < halfheight; ++y, tex_offset += tex_offsetPitch)
 	{

@@ -245,6 +245,18 @@ void CalcTics()
 // calculate tics since last refresh for adaptive timing
 //
 
+#ifdef MISTER_HYBRID
+	// One frame per field of the core
+	if(!noadaptive && !Net::IsBlocked() && MiSTer_FrameTics(tics, r_ticfrac))
+	{
+		lasttimecount = GetTimeCount();
+		if (tics>MAXTICS)
+			tics = MAXTICS;
+		return;
+	}
+	r_ticfrac = 0;
+#endif
+
 	// Have we arrived too soon?
 	while(lasttimecount == GetTimeCount()+1)
 		SDL_Delay(1);
@@ -273,6 +285,9 @@ void CalcTics()
 void ResetTimeCount()
 {
 	lasttimecount = GetTimeCount();
+#ifdef MISTER_HYBRID
+	MiSTer_ResetFrameTics();
+#endif
 }
 
 void Delay(int wolfticks)
@@ -533,6 +548,7 @@ void PollMouseMove (void)
 		const int scaled = control[ConsolePlayer].controlpanx * 20 * MiSTer_MouseSensitivity() + remainder;
 		const int divisor = (21 - mousexadjustment) * 100;
 		control[ConsolePlayer].controlx += scaled / divisor;
+		r_mousecontrolx = scaled / divisor;
 		remainder = scaled % divisor;
 	}
 #else
@@ -620,6 +636,9 @@ void PollControls (bool absolutes)
 
 	cmd.controlx = 0;
 	cmd.controly = 0;
+#ifdef MISTER_HYBRID
+	r_mousecontrolx = 0;
+#endif
 	cmd.controlpanx = 0;
 	cmd.controlpany = 0;
 	cmd.controlstrafe = 0;
@@ -798,6 +817,12 @@ void CheckKeys (void)
 	static bool changeSize = true;
 	ScanCode scan;
 
+
+#ifdef MISTER_HYBRID
+	// Resolution from the core's menu
+	if (!screenfaded && MiSTer_UpdateResolution())
+		DrawPlayScreen();
+#endif
 
 	if (screenfaded || demoplayback)    // don't do anything with a faded screen
 		return;
@@ -1177,6 +1202,9 @@ void PlayLoop (void)
 		madenoise = false;
 
 		// Run tics
+#ifdef MISTER_HYBRID
+		r_interpolate = false;
+#endif
 		for (unsigned int i = 0;i < tics;++i)
 		{
 			PollControls(!i);
@@ -1188,6 +1216,10 @@ void PlayLoop (void)
 			if(!Paused)
 			{
 				++gamestate.TimeCount;
+#ifdef MISTER_HYBRID
+				R_StoreActorPositions();
+				r_interpolate = true;
+#endif
 
 				CheckSpawnPlayer();
 
@@ -1202,6 +1234,9 @@ void PlayLoop (void)
 		}
 
 		PlayFrame();
+#ifdef MISTER_HYBRID
+		r_interpolate = false;
+#endif
 
 		//
 		// MAKE FUNNY FACE IF BJ DOESN'T MOVE FOR AWHILE

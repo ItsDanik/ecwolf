@@ -79,8 +79,33 @@ ESpecialThings SpecialThingNamesLookup(FName name)
 	return SMT_NumThings;
 }
 
+bool GameMap::GetUniformFlats(FTextureID &floor, FTextureID &ceiling) const
+{
+	const Plane &plane = planes[0];
+	const Sector *sector = plane.map[0].sector;
+
+	if(uniformFlats < 0)
+	{
+		uniformFlats = sector && sector->texture[Sector::Floor].isValid() && sector->texture[Sector::Ceiling].isValid();
+		for(unsigned int i = header.width*header.height;uniformFlats && i-- > 1;)
+		{
+			const Sector *other = plane.map[i].sector;
+			if(other != sector && (!other ||
+				other->texture[Sector::Floor] != sector->texture[Sector::Floor] ||
+				other->texture[Sector::Ceiling] != sector->texture[Sector::Ceiling]))
+				uniformFlats = 0;
+		}
+	}
+	if(!uniformFlats)
+		return false;
+
+	floor = sector->texture[Sector::Floor];
+	ceiling = sector->texture[Sector::Ceiling];
+	return true;
+}
+
 GameMap::GameMap(const FString &map) : map(map), valid(false), isUWMF(false),
-	file(NULL), zoneTraversed(NULL), zoneLinks(NULL)
+	file(NULL), uniformFlats(-1), zoneTraversed(NULL), zoneLinks(NULL)
 {
 	lumps[0] = NULL;
 
@@ -804,6 +829,8 @@ FArchive &operator<< (FArchive &arc, GameMap *&gm)
 	}
 
 	// Serialize any map information that may change
+	if(!arc.IsStoring())
+		gm->uniformFlats = -1;
 	for(unsigned int p = 0;p < gm->NumPlanes();++p)
 	{
 		MapPlane &plane = gm->planes[p];

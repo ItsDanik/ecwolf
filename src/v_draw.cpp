@@ -236,6 +236,15 @@ void STACK_ARGS DCanvas::DrawTextureV(FTexture *img, double x, double y, uint32 
 		double xiscale = img->GetWidth() / parms.destwidth;
 		double x2 = x0 + parms.destwidth;
 
+		// The clippers are filled for the width of the screen: a screen of
+		// another width and the same height needs them filled again
+		static int clipperwidth = 0;
+		if (clipperwidth != screen->GetWidth())
+		{
+			clipperwidth = screen->GetWidth();
+			bottomclipper[0] = topclipper[0] = -1;
+		}
+
 		if (bottomclipper[0] != parms.dclip)
 		{
 			clearbufshort(bottomclipper, screen->GetWidth(), (short)parms.dclip);

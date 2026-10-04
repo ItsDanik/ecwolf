@@ -1180,11 +1180,13 @@ static const char* CheckParameters(int argc, char *argv[], TArray<FString> &file
 	}
 
 #ifdef MISTER_HYBRID
-	// The core scans out 320x200 at 15kHz, which is 4:3 on the screen
+	// The core scans out the size picked in its menu at 15kHz, which is 4:3
+	// on the screen whatever the size
 	fullscreen = true;
-	screenWidth = fullScreenWidth = windowedScreenWidth = 320;
-	screenHeight = fullScreenHeight = windowedScreenHeight = 200;
-	vid_aspect = ASPECT_NONE;
+	MiSTer_Resolution(screenWidth, screenHeight);
+	fullScreenWidth = windowedScreenWidth = screenWidth;
+	fullScreenHeight = windowedScreenHeight = screenHeight;
+	vid_aspect = ASPECT_4_3;
 #endif
 
 	r_ratio = static_cast<Aspect>(CheckRatio(screenWidth, screenHeight));

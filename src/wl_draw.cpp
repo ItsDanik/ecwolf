@@ -677,13 +677,44 @@ void DrawPlayerWeapon (void)
 
 //==========================================================================
 
+// How far a pushwall is into the next tile, as a part of TILEGLOBAL. The map
+// has it in 64ths of a tile.
+#ifdef MISTER_HYBRID
+// A pushwall that moved in the last tic is drawn between where it was and
+// where it is now, like the actors (r_ticfrac)
+struct InterpolatedPushwall
+{
+	MapSpot	spot;
+	int		prev, next;
+	int		fine;
+};
+static TArray<InterpolatedPushwall> interpolatedPushwalls;
+#endif
+
+static inline int PushFine(MapSpot spot)
+{
+#ifdef MISTER_HYBRID
+	for(unsigned int i = 0;i < interpolatedPushwalls.Size();++i)
+	{
+		if(interpolatedPushwalls[i].spot == spot)
+			return interpolatedPushwalls[i].fine;
+	}
+#endif
+	return spot->pushAmount << 10;
+}
+
+static inline int32_t PushMul(int32_t step, int fine)
+{
+	return (int32_t)(((int64_t)step * fine) >> TILESHIFT);
+}
+
 void AsmRefresh()
 {
 	static word xspot[2],yspot[2];
 	int32_t xstep=0,ystep=0;
 	longword xpartial=0,ypartial=0;
 	MapSpot focalspot = map->GetSpot(focaltx, focalty, 0);
-	bool playerInPushwallBackTile = focalspot->pushAmount != 0;
+	bool playerInPushwallBackTile = PushFine(focalspot) != 0;
 
 	for(pixx=0;pixx<viewwidth;pixx++)
 	{
@@ -741,17 +772,18 @@ void AsmRefresh()
 		{
 			if(focalspot->pushReceptor)
 				focalspot = focalspot->pushReceptor;
+			const int focalfine = PushFine(focalspot);
 
 			if((focalspot->pushDirection == MapTile::East && xtilestep == 1) ||
 				(focalspot->pushDirection == MapTile::West && xtilestep == -1))
 			{
-				int32_t yintbuf = yintercept - ytilestep*(abs(ystep * signed(64 - focalspot->pushAmount)) >> 6);
+				int32_t yintbuf = yintercept - ytilestep*PushMul(abs(ystep), TILEGLOBAL - focalfine);
 				if((yintbuf >> 16) == focalty)   // ray hits pushwall back?
 				{
 					if(focalspot->pushDirection == MapTile::East)
-						xintercept = (focaltx << TILESHIFT) + (focalspot->pushAmount << 10);
+						xintercept = (focaltx << TILESHIFT) + focalfine;
 					else
-						xintercept = (focaltx << TILESHIFT) - TILEGLOBAL + ((64 - focalspot->pushAmount) << 10);
+						xintercept = (focaltx << TILESHIFT) - focalfine;
 					yintercept = yintbuf;
 					ytile = (short) (yintercept >> TILESHIFT);
 					tilehit = focalspot;
@@ -762,14 +794,14 @@ void AsmRefresh()
 			else if((focalspot->pushDirection == MapTile::South && ytilestep == 1) ||
 				(focalspot->pushDirection == MapTile::North && ytilestep == -1))
 			{
-				int32_t xintbuf = xintercept - xtilestep*(abs(xstep * signed(64 - focalspot->pushAmount)) >> 6);
+				int32_t xintbuf = xintercept - xtilestep*PushMul(abs(xstep), TILEGLOBAL - focalfine);
 				if((xintbuf >> 16) == focaltx)   // ray hits pushwall back?
 				{
 					xintercept = xintbuf;
 					if(focalspot->pushDirection == MapTile::South)
-						yintercept = (focalty << TILESHIFT) + (focalspot->pushAmount << 10);
+						yintercept = (focalty << TILESHIFT) + focalfine;
 					else
-						yintercept = (focalty << TILESHIFT) - TILEGLOBAL + ((64 - focalspot->pushAmount) << 10);
+						yintercept = (focalty << TILESHIFT) - focalfine;
 					xtile = (short) (xintercept >> TILESHIFT);
 					tilehit = focalspot;
 					HitHorizWall();
@@ -815,7 +847,7 @@ vertentry:
 				}
 				else
 				{
-					bool isPushwall = tilehit->pushAmount != 0 || tilehit->pushReceptor;
+					bool isPushwall = PushFine(tilehit) != 0 || tilehit->pushReceptor;
 					if(tilehit->pushReceptor)
 						tilehit = tilehit->pushReceptor;
 
@@ -828,33 +860,33 @@ vertentry:
 							int pwallposinv;
 							if(tilehit->pushDirection==MapTile::West)
 							{
-								pwallposnorm = 64-tilehit->pushAmount;
-								pwallposinv = tilehit->pushAmount;
+								pwallposnorm = TILEGLOBAL-PushFine(tilehit);
+								pwallposinv = PushFine(tilehit);
 							}
 							else
 							{
-								pwallposnorm = tilehit->pushAmount;
-								pwallposinv = 64-tilehit->pushAmount;
+								pwallposnorm = PushFine(tilehit);
+								pwallposinv = TILEGLOBAL-PushFine(tilehit);
 							}
 							if((tilehit->pushDirection==MapTile::East && xtile==(signed)tilehit->GetX() && ((uint32_t)yintercept>>16)==tilehit->GetY())
 								|| (tilehit->pushDirection==MapTile::West && !(xtile==(signed)tilehit->GetX() && ((uint32_t)yintercept>>16)==tilehit->GetY())))
 							{
-								yintbuf=yintercept+((ystep*pwallposnorm)>>6);
+								yintbuf=yintercept+PushMul(ystep, pwallposnorm);
 								if((yintbuf>>16)!=(yintercept>>16))
 									goto passvert;
 
-								xintercept=(xtile<<TILESHIFT)+TILEGLOBAL-(pwallposinv<<10);
+								xintercept=(xtile<<TILESHIFT)+TILEGLOBAL-pwallposinv;
 								yintercept=yintbuf;
 								ytile = (short) (yintercept >> TILESHIFT);
 								HitVertWall();
 							}
 							else
 							{
-								yintbuf=yintercept+((ystep*pwallposinv)>>6);
+								yintbuf=yintercept+PushMul(ystep, pwallposinv);
 								if((yintbuf>>16)!=(yintercept>>16))
 									goto passvert;
 
-								xintercept=(xtile<<TILESHIFT)-(pwallposinv<<10);
+								xintercept=(xtile<<TILESHIFT)-pwallposinv;
 								yintercept=yintbuf;
 								ytile = (short) (yintercept >> TILESHIFT);
 								HitVertWall();
@@ -862,33 +894,33 @@ vertentry:
 						}
 						else
 						{
-							int pwallposi = tilehit->pushAmount;
-							if(tilehit->pushDirection==MapTile::North) pwallposi = 64-tilehit->pushAmount;
-							if((tilehit->pushDirection==MapTile::South && (word)yintercept<(pwallposi<<10))
-								|| (tilehit->pushDirection==MapTile::North && (word)yintercept>(pwallposi<<10)))
+							int pwallposi = PushFine(tilehit);
+							if(tilehit->pushDirection==MapTile::North) pwallposi = TILEGLOBAL-PushFine(tilehit);
+							if((tilehit->pushDirection==MapTile::South && (word)yintercept<pwallposi)
+								|| (tilehit->pushDirection==MapTile::North && (word)yintercept>pwallposi))
 							{
 								if(((uint32_t)yintercept>>16)==tilehit->GetY() && xtile==(signed)tilehit->GetX())
 								{
-									if((tilehit->pushDirection==MapTile::South && (int32_t)((word)yintercept)+ystep<(pwallposi<<10))
-										|| (tilehit->pushDirection==MapTile::North && (int32_t)((word)yintercept)+ystep>(pwallposi<<10)))
+									if((tilehit->pushDirection==MapTile::South && (int32_t)((word)yintercept)+ystep<pwallposi)
+										|| (tilehit->pushDirection==MapTile::North && (int32_t)((word)yintercept)+ystep>pwallposi))
 										goto passvert;
 
 									if(tilehit->pushDirection==MapTile::South)
 									{
-										yintercept=(yintercept&0xffff0000)+(pwallposi<<10);
-										xintercept=xintercept-((xstep*(64-pwallposi))>>6);
+										yintercept=(yintercept&0xffff0000)+pwallposi;
+										xintercept=xintercept-PushMul(xstep, TILEGLOBAL-pwallposi);
 									}
 									else
 									{
-										yintercept=(yintercept&0xffff0000)-TILEGLOBAL+(pwallposi<<10);
-										xintercept=xintercept-((xstep*pwallposi)>>6);
+										yintercept=(yintercept&0xffff0000)-TILEGLOBAL+pwallposi;
+										xintercept=xintercept-PushMul(xstep, pwallposi);
 									}
 									xtile = (short) (xintercept >> TILESHIFT);
 									HitHorizWall();
 								}
 								else
 								{
-									texdelta = -(pwallposi<<10);
+									texdelta = -pwallposi;
 									xintercept=xtile<<TILESHIFT;
 									ytile = (short) (yintercept >> TILESHIFT);
 									HitVertWall();
@@ -898,26 +930,26 @@ vertentry:
 							{
 								if(((uint32_t)yintercept>>16)==tilehit->GetY() && xtile==(signed)tilehit->GetX())
 								{
-									texdelta = -(pwallposi<<10);
+									texdelta = -pwallposi;
 									xintercept=xtile<<TILESHIFT;
 									ytile = (short) (yintercept >> TILESHIFT);
 									HitVertWall();
 								}
 								else
 								{
-									if((tilehit->pushDirection==MapTile::South && (int32_t)((word)yintercept)+ystep>(pwallposi<<10))
-										|| (tilehit->pushDirection==MapTile::North && (int32_t)((word)yintercept)+ystep<(pwallposi<<10)))
+									if((tilehit->pushDirection==MapTile::South && (int32_t)((word)yintercept)+ystep>pwallposi)
+										|| (tilehit->pushDirection==MapTile::North && (int32_t)((word)yintercept)+ystep<pwallposi))
 										goto passvert;
 
 									if(tilehit->pushDirection==MapTile::South)
 									{
-										yintercept=(yintercept&0xffff0000)-TILEGLOBAL+(pwallposi<<10);
-										xintercept=xintercept-((xstep*pwallposi)>>6);
+										yintercept=(yintercept&0xffff0000)-TILEGLOBAL+pwallposi;
+										xintercept=xintercept-PushMul(xstep, pwallposi);
 									}
 									else
 									{
-										yintercept=(yintercept&0xffff0000)+(pwallposi<<10);
-										xintercept=xintercept-((xstep*(64-pwallposi))>>6);
+										yintercept=(yintercept&0xffff0000)+pwallposi;
+										xintercept=xintercept-PushMul(xstep, TILEGLOBAL-pwallposi);
 									}
 									xtile = (short) (xintercept >> TILESHIFT);
 									HitHorizWall();
@@ -982,7 +1014,7 @@ horizentry:
 				}
 				else
 				{
-					bool isPushwall = tilehit->pushAmount != 0 || tilehit->pushReceptor;
+					bool isPushwall = PushFine(tilehit) != 0 || tilehit->pushReceptor;
 					if(tilehit->pushReceptor)
 						tilehit = tilehit->pushReceptor;
 
@@ -995,33 +1027,33 @@ horizentry:
 							int pwallposinv;
 							if(tilehit->pushDirection==MapTile::North)
 							{
-								pwallposnorm = 64-tilehit->pushAmount;
-								pwallposinv = tilehit->pushAmount;
+								pwallposnorm = TILEGLOBAL-PushFine(tilehit);
+								pwallposinv = PushFine(tilehit);
 							}
 							else
 							{
-								pwallposnorm = tilehit->pushAmount;
-								pwallposinv = 64-tilehit->pushAmount;
+								pwallposnorm = PushFine(tilehit);
+								pwallposinv = TILEGLOBAL-PushFine(tilehit);
 							}
 							if((tilehit->pushDirection == MapTile::South && ytile==(signed)tilehit->GetY() && ((uint32_t)xintercept>>16)==tilehit->GetX())
 								|| (tilehit->pushDirection == MapTile::North && !(ytile==(signed)tilehit->GetY() && ((uint32_t)xintercept>>16)==tilehit->GetX())))
 							{
-								xintbuf=xintercept+((xstep*pwallposnorm)>>6);
+								xintbuf=xintercept+PushMul(xstep, pwallposnorm);
 								if((xintbuf>>16)!=(xintercept>>16))
 									goto passhoriz;
 
-								yintercept=(ytile<<TILESHIFT)+TILEGLOBAL-(pwallposinv<<10);
+								yintercept=(ytile<<TILESHIFT)+TILEGLOBAL-pwallposinv;
 								xintercept=xintbuf;
 								xtile = (short) (xintercept >> TILESHIFT);
 								HitHorizWall();
 							}
 							else
 							{
-								xintbuf=xintercept+((xstep*pwallposinv)>>6);
+								xintbuf=xintercept+PushMul(xstep, pwallposinv);
 								if((xintbuf>>16)!=(xintercept>>16))
 									goto passhoriz;
 
-								yintercept=(ytile<<TILESHIFT)-(pwallposinv<<10);
+								yintercept=(ytile<<TILESHIFT)-pwallposinv;
 								xintercept=xintbuf;
 								xtile = (short) (xintercept >> TILESHIFT);
 								HitHorizWall();
@@ -1029,33 +1061,33 @@ horizentry:
 						}
 						else
 						{
-							int pwallposi = tilehit->pushAmount;
-							if(tilehit->pushDirection==MapTile::West) pwallposi = 64-tilehit->pushAmount;
-							if((tilehit->pushDirection==MapTile::East && (word)xintercept<(pwallposi<<10))
-								|| (tilehit->pushDirection==MapTile::West && (word)xintercept>(pwallposi<<10)))
+							int pwallposi = PushFine(tilehit);
+							if(tilehit->pushDirection==MapTile::West) pwallposi = TILEGLOBAL-PushFine(tilehit);
+							if((tilehit->pushDirection==MapTile::East && (word)xintercept<pwallposi)
+								|| (tilehit->pushDirection==MapTile::West && (word)xintercept>pwallposi))
 							{
 								if(((uint32_t)xintercept>>16)==tilehit->GetX() && ytile==(signed)tilehit->GetY())
 								{
-									if((tilehit->pushDirection==MapTile::East && (int32_t)((word)xintercept)+xstep<(pwallposi<<10))
-										|| (tilehit->pushDirection==MapTile::West && (int32_t)((word)xintercept)+xstep>(pwallposi<<10)))
+									if((tilehit->pushDirection==MapTile::East && (int32_t)((word)xintercept)+xstep<pwallposi)
+										|| (tilehit->pushDirection==MapTile::West && (int32_t)((word)xintercept)+xstep>pwallposi))
 										goto passhoriz;
 
 									if(tilehit->pushDirection==MapTile::East)
 									{
-										xintercept=(xintercept&0xffff0000)+(pwallposi<<10);
-										yintercept=yintercept-((ystep*(64-pwallposi))>>6);
+										xintercept=(xintercept&0xffff0000)+pwallposi;
+										yintercept=yintercept-PushMul(ystep, TILEGLOBAL-pwallposi);
 									}
 									else
 									{
-										xintercept=(xintercept&0xffff0000)-TILEGLOBAL+(pwallposi<<10);
-										yintercept=yintercept-((ystep*pwallposi)>>6);
+										xintercept=(xintercept&0xffff0000)-TILEGLOBAL+pwallposi;
+										yintercept=yintercept-PushMul(ystep, pwallposi);
 									}
 									ytile = (short) (yintercept >> TILESHIFT);
 									HitVertWall();
 								}
 								else
 								{
-									texdelta = -(pwallposi<<10);
+									texdelta = -pwallposi;
 									yintercept=ytile<<TILESHIFT;
 									xtile = (short) (xintercept >> TILESHIFT);
 									HitHorizWall();
@@ -1065,26 +1097,26 @@ horizentry:
 							{
 								if(((uint32_t)xintercept>>16)==tilehit->GetX() && ytile==(signed)tilehit->GetY())
 								{
-									texdelta = -(pwallposi<<10);
+									texdelta = -pwallposi;
 									yintercept=ytile<<TILESHIFT;
 									xtile = (short) (xintercept >> TILESHIFT);
 									HitHorizWall();
 								}
 								else
 								{
-									if((tilehit->pushDirection==MapTile::East && (int32_t)((word)xintercept)+xstep>(pwallposi<<10))
-										|| (tilehit->pushDirection==MapTile::West && (int32_t)((word)xintercept)+xstep<(pwallposi<<10)))
+									if((tilehit->pushDirection==MapTile::East && (int32_t)((word)xintercept)+xstep>pwallposi)
+										|| (tilehit->pushDirection==MapTile::West && (int32_t)((word)xintercept)+xstep<pwallposi))
 										goto passhoriz;
 
 									if(tilehit->pushDirection==MapTile::East)
 									{
-										xintercept=(xintercept&0xffff0000)-TILEGLOBAL+(pwallposi<<10);
-										yintercept=yintercept-((ystep*pwallposi)>>6);
+										xintercept=(xintercept&0xffff0000)-TILEGLOBAL+pwallposi;
+										yintercept=yintercept-PushMul(ystep, pwallposi);
 									}
 									else
 									{
-										xintercept=(xintercept&0xffff0000)+(pwallposi<<10);
-										yintercept=yintercept-((ystep*(64-pwallposi))>>6);
+										xintercept=(xintercept&0xffff0000)+pwallposi;
+										yintercept=yintercept-PushMul(ystep, TILEGLOBAL-pwallposi);
 									}
 									ytile = (short) (yintercept >> TILESHIFT);
 									HitVertWall();
@@ -1189,6 +1221,132 @@ void ThreeDStartFadeIn()
 
 //==========================================================================
 
+#ifdef MISTER_HYBRID
+// The MiSTer core shows 59.6 pictures per second and the game moves 70 times
+// per second. Drawing the state of the last tic every time would make one
+// picture in six jump two tics ahead. Instead a picture is drawn r_ticfrac
+// (0..FRACUNIT-1) into the last tic: whatever moved in that tic is put between
+// where it was before (R_StoreActorPositions) and where it is now.
+fixed r_ticfrac;
+// Set for the frames of the play loop in which a tic ran
+bool r_interpolate;
+// The mouse is read once per frame, not per tic: what it turned the player in
+// the last tic (r_mousecontrolx of controlx) is on the screen at once
+int r_mousecontrolx;
+angle_t r_mouseturn;
+
+struct InterpolatedActor
+{
+	AActor	*actor;
+	fixed	x, y;
+	angle_t	angle;
+};
+static TArray<InterpolatedActor> interpolated;
+
+// What a thinker moved in the last tic: the slide of a door
+struct InterpolatedValue
+{
+	unsigned int	*value;
+	unsigned int	prev, next;
+};
+static TArray<InterpolatedValue> interpolatedValues;
+
+// Called before the thinkers of a tic run
+void R_StoreActorPositions()
+{
+	r_mouseturn = 0;
+	interpolatedValues.Clear();
+	interpolatedPushwalls.Clear();
+	for(AActor::Iterator iter = AActor::GetIterator();iter.Next();)
+	{
+		AActor *actor = iter;
+		actor->prevx = actor->x;
+		actor->prevy = actor->y;
+		actor->prevangle = actor->angle;
+		actor->prevtic = gamestate.TimeCount;
+	}
+}
+
+// Called by a pushwall that moved in its tic from `prev` to `next` (parts of
+// TILEGLOBAL) into the tile after `spot`
+void R_InterpolatePushwall(MapSpot spot, int prev, int next)
+{
+	InterpolatedPushwall moved = { spot, prev, next, next };
+	interpolatedPushwalls.Push(moved);
+}
+
+// Called by a thinker in its tic, before it sets `value` to `next`
+void R_InterpolateMapValue(unsigned int &value, unsigned int next)
+{
+	if(value == next)
+		return;
+	InterpolatedValue moved = { &value, value, next };
+	interpolatedValues.Push(moved);
+}
+
+static void InterpolateActors()
+{
+	interpolated.Clear();
+	if(!r_interpolate)
+	{
+		interpolatedValues.Clear();
+		interpolatedPushwalls.Clear();
+		return;
+	}
+
+	for(unsigned int i = 0;i < interpolatedPushwalls.Size();++i)
+	{
+		InterpolatedPushwall &moved = interpolatedPushwalls[i];
+		moved.fine = moved.prev + FixedMul(moved.next - moved.prev, r_ticfrac);
+	}
+
+	for(unsigned int i = 0;i < interpolatedValues.Size();++i)
+	{
+		const InterpolatedValue &moved = interpolatedValues[i];
+		*moved.value = moved.prev + FixedMul((int)(moved.next - moved.prev), r_ticfrac);
+	}
+
+	const AActor *camera = players[ConsolePlayer].camera;
+	for(AActor::Iterator iter = AActor::GetIterator();iter.Next();)
+	{
+		AActor *actor = iter;
+		if(actor->prevtic != gamestate.TimeCount) // spawned in this tic
+			continue;
+
+		const fixed dx = actor->x - actor->prevx;
+		const fixed dy = actor->y - actor->prevy;
+		// the angle of the others only picks the side of the sprite to show
+		const angle_t mouseturn = actor == players[ConsolePlayer].mo ? r_mouseturn : 0;
+		const int32_t dangle = actor == camera ? (int32_t)(actor->angle - actor->prevangle - mouseturn) : 0;
+		if(!(dx | dy | dangle))
+			continue;
+		if(abs(dx) >= TILEGLOBAL || abs(dy) >= TILEGLOBAL) // put somewhere else, not moved
+			continue;
+
+		InterpolatedActor current = { actor, actor->x, actor->y, actor->angle };
+		interpolated.Push(current);
+		actor->x = actor->prevx + FixedMul(dx, r_ticfrac);
+		actor->y = actor->prevy + FixedMul(dy, r_ticfrac);
+		actor->angle = actor->prevangle + mouseturn + FixedMul(dangle, r_ticfrac);
+	}
+}
+
+static void RestoreActors()
+{
+	for(unsigned int i = 0;i < interpolatedValues.Size();++i)
+		*interpolatedValues[i].value = interpolatedValues[i].next;
+
+	for(unsigned int i = 0;i < interpolated.Size();++i)
+	{
+		const InterpolatedActor &current = interpolated[i];
+		current.actor->x = current.x;
+		current.actor->y = current.y;
+		current.actor->angle = current.angle;
+	}
+	interpolated.Clear();
+}
+#endif
+
 void R_RenderView()
 {
 	CalcViewVariables();
@@ -1264,7 +1422,13 @@ void    ThreeDRefresh (void)
 	vbuf += screenofs;
 	vbufPitch = SCREENPITCH;
 
+#ifdef MISTER_HYBRID
+	InterpolateActors();
 	R_RenderView();
+	RestoreActors();
+#else
+	R_RenderView();
+#endif
 
 	VL_UnlockSurface();
 	vbuf = NULL;

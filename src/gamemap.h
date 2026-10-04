@@ -208,6 +208,9 @@ class GameMap
 		bool			ActivateTrigger(Trigger &trig, Trigger::Side direction, AActor *activator);
 		void			ClearVisibility();
 		const Header	&GetHeader() const { return header; }
+		// True if every spot of the map has the same floor and the same
+		// ceiling texture, as the levels of Wolfenstein 3D have
+		bool			GetUniformFlats(FTextureID &floor, FTextureID &ceiling) const;
 		void			GetHitlist(BYTE* hitlist) const;
 		int				GetMarketLumpNum() const { return markerLump; }
 		const PlayerSpawn *GetPlayerSpawn(int player) const;
@@ -270,6 +273,9 @@ class GameMap
 		TArray<Thing>	things;
 		TArray<Plane>	planes;
 		TMap<unsigned int, Plane::Map *> tagMap;
+
+		// What GetUniformFlats found: -1 not looked yet
+		mutable int		uniformFlats;
 
 		// Sound travel links.  zoneTraversed is temporary array for recursive
 		// traversals.  zoneLinks is the table of links (counts the number of

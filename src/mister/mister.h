@@ -2,7 +2,7 @@
 #define __MISTER_H__
 
 // MiSTer hybrid core: the game runs on the ARM, the ECWolf FPGA core shows
-// the 320x200 picture at 15kHz and provides audio and input. SDL's "mister"
+// the picture at 15kHz and provides audio and input. SDL's "mister"
 // drivers (hybrid/sdl2 in the MiSTer-ecwolf repository) do most of the work;
 // this is what is specific to the game.
 
@@ -37,6 +37,22 @@ enum
 // the game's own sensitivity settings
 int MiSTer_MouseSensitivity();
 int MiSTer_StickSensitivity();
+
+// OSD option Resolution: the size of the screen the core is to show, 320x200
+// or 640x200. The picture is 4:3 at both sizes
+void MiSTer_Resolution(unsigned &width, unsigned &height);
+// Follows the Resolution option: true if the size of the screen has just
+// changed, and what is on it has to be drawn again
+bool MiSTer_UpdateResolution();
+
+// Frame pacing. The core shows 59.6 fields per second and the game runs 70
+// tics per second, so a frame is not a whole number of tics. Waits for the
+// next field and returns the whole tics that have passed since the last call;
+// `frac` (0..FRACUNIT-1) is how far the picture to draw is into the tic after
+// those, which the renderer interpolates with. False without the core.
+bool MiSTer_FrameTics(unsigned &tics, int &frac);
+// The next call starts counting anew, after the game stood still
+void MiSTer_ResetFrameTics();
 
 // Lets the player pick the game on the screen. Returns the index, -1 to quit
 int MiSTer_PickIWad(WadStuff *wads, int numwads, int defaultiwad);

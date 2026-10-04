@@ -393,6 +393,9 @@ void AActor::Init()
 	dir = nodir;
 	soundZone = NULL;
 	inventory = NULL;
+#ifdef MISTER_HYBRID
+	prevtic = -1;
+#endif
 
 	actors.Push(this);
 	if(!loadedgame)

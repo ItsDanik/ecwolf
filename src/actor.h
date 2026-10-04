@@ -185,6 +185,13 @@ class AActor : public Thinker,
 		short       viewx;
 		word        viewheight;
 		fixed       transx,transy;      // in global coord
+#ifdef MISTER_HYBRID
+		// Where the actor was before the tic `prevtic`: the renderer draws it
+		// between there and where it is now (r_ticfrac in wl_draw.cpp)
+		fixed		prevx, prevy;
+		angle_t		prevangle;
+		int32_t		prevtic;
+#endif
 
 		FTextureID	overheadIcon;
 

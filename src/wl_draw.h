@@ -32,6 +32,15 @@ extern  fixed   viewsin,viewcos;
 
 void    ThreeDStartFadeIn ();
 void    ThreeDRefresh (void);
+#ifdef MISTER_HYBRID
+// Drawing between two tics, see wl_draw.cpp
+extern  fixed   r_ticfrac;
+extern  bool    r_interpolate;
+extern  int     r_mousecontrolx;
+extern  angle_t r_mouseturn;
+void    R_StoreActorPositions();
+void    R_InterpolateMapValue(unsigned int &value, unsigned int next);
+#endif
 
 typedef struct
 {

@@ -50,6 +50,9 @@
 #include "wl_net.h"
 #include "wl_play.h"
 #include "thingdef/thingdef.h"
+#ifdef MISTER_HYBRID
+#include "mister/mister.h"
+#endif
 
 static TMap<FName, IntermissionInfo> intermissions;
 
@@ -99,6 +102,12 @@ static bool WaitIntermission(unsigned int time)
 
 static bool ShowImage(IntermissionAction *image, bool drawonly)
 {
+#ifdef MISTER_HYBRID
+	// Resolution from the core's menu: the title pages follow it page by page
+	if(!drawonly)
+		MiSTer_UpdateResolution();
+#endif
+
 	if(!image->Music.IsEmpty())
 		StartCPMusic(image->Music);
 

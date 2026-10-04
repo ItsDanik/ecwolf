@@ -151,6 +151,16 @@ class EVDoor : public Thinker
 			return state == Closing || state == Closed;
 		}
 
+		void SetSlideAmount()
+		{
+#ifdef MISTER_HYBRID
+			// drawn between where it was and where it is now
+			R_InterpolateMapValue(spot->slideAmount[direction], amount);
+			R_InterpolateMapValue(spot->slideAmount[direction+2], amount);
+#endif
+			spot->slideAmount[direction] = spot->slideAmount[direction+2] = amount;
+		}
+
 		void Tick()
 		{
 			if(sndseq)
@@ -182,7 +192,7 @@ class EVDoor : public Thinker
 						else
 							ChangeState(Opened);
 					}
-					spot->slideAmount[direction] = spot->slideAmount[direction+2] = amount;
+					SetSlideAmount();
 					break;
 				case Opened:
 					if(wait == 0)
@@ -211,7 +221,7 @@ class EVDoor : public Thinker
 						const MapZone *zone2 = spot->GetAdjacent(MapTile::Side(direction), true)->zone;
 						map->LinkZones(zone1, zone2, false);
 					}
-					spot->slideAmount[direction] = spot->slideAmount[direction+2] = amount;
+					SetSlideAmount();
 					break;
 			}
 		}
@@ -723,6 +733,10 @@ FUNC(Elevator_SwitchFloor)
 	return 0;
 }
 
+#ifdef MISTER_HYBRID
+void R_InterpolatePushwall(MapSpot spot, int prev, int next); // wl_draw.cpp
+#endif
+
 class EVPushwall : public Thinker
 {
 	DECLARE_CLASS(EVPushwall, Thinker)
@@ -839,7 +853,14 @@ class EVPushwall : public Thinker
 				moveTo = NULL;
 			}
 			else
+			{
+#ifdef MISTER_HYBRID
+				// The position counts 1024 to a tile. What is left of it
+				// after the wall arrived in a tile was not shown
+				R_InterpolatePushwall(spot, spot->pushAmount ? (position - speed) << 6 : 0, position << 6);
+#endif
 				spot->pushAmount = position/16;
+			}
 
 			if(!moveTo)
 			{

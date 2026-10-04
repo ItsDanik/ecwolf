@@ -529,7 +529,10 @@ void CreateMenus()
 	displayMenu.addItem(new BooleanMenuItem(language["STR_VSYNC"], vid_vsync, ToggleVsync));
 #endif
 	displayMenu.addItem(new MultipleChoiceMenuItem(SetAspectRatio, aspectOptions, 8, vid_aspect));
+#ifndef MISTER_HYBRID
+	// The resolution is an option in the core's menu
 	displayMenu.addItem(new MenuSwitcherMenuItem(language["STR_SELECTRES"], resolutionMenu, EnterResolutionSelection));
+#endif
 	displayMenu.addItem(new LabelMenuItem(language["STR_SCREENSIZE"]));
 	displayMenu.addItem(new SliderMenuItem(viewsize, 110, 21, language["STR_SMALL"], language["STR_LARGE"], AdjustViewSize));
 

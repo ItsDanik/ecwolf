@@ -190,6 +190,16 @@ void ControlMovement (APlayerPawn *ob)
 		// not strafing
 		//
 		ob->angle -= controlx*(ANGLE_1/ANGLESCALE);
+
+#ifdef MISTER_HYBRID
+		if(playernum == ConsolePlayer)
+		{
+			int mousex = r_mousecontrolx;
+			if(ob->player->ReadyWeapon && ob->player->ReadyWeapon->fovscale > 0)
+				mousex = xs_ToInt(mousex*ob->player->ReadyWeapon->fovscale);
+			r_mouseturn = -mousex*(ANGLE_1/ANGLESCALE);
+		}
+#endif
 	}
 
 	if(strafe)
