@@ -82,6 +82,11 @@ function(find_sdl_library PKG LIB HEADER INTERNAL_TARGET)
 		# First try to locate an installed system library config
 		if(NOT ${INTERNAL_VAR_NAME})
 			find_package(${LIB} QUIET)
+			# A static only install of SDL_mixer and SDL_net has no target
+			# without the -static suffix
+			if(NOT TARGET "${MODERN_TARGET}" AND TARGET "${MODERN_TARGET}-static")
+				set(${LIB}_LIBRARIES "${MODERN_TARGET}-static")
+			endif()
 		endif()
 
 		set(TARGET_TYPE "system")

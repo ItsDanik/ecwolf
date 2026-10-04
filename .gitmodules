@@ -1,11 +1,20 @@
 [submodule "deps/SDL"]
 	path = deps/SDL
 	url = ../sdl.git
+	# not used by the MiSTer build, which brings its own SDL: a recursive
+	# clone of ecwolf_MiSTer leaves these alone
+	update = none
 
 [submodule "deps/SDL_mixer"]
 	path = deps/SDL_mixer
 	url = ../sdl_mixer-for-ecwolf.git
+	# not used by the MiSTer build, which brings its own SDL: a recursive
+	# clone of ecwolf_MiSTer leaves these alone
+	update = none
 
 [submodule "deps/SDL_net"]
 	path = deps/SDL_net
 	url = ../sdl_net.git
+	# not used by the MiSTer build, which brings its own SDL: a recursive
+	# clone of ecwolf_MiSTer leaves these alone
+	update = none

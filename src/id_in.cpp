@@ -219,6 +219,17 @@ int IN_GetJoyAxis(int axis)
 	return SDL_JoystickGetAxis(Joystick, axis);
 }
 
+#ifdef MISTER_HYBRID
+// The d-pad, as SDL_HAT_* bits
+int IN_JoyHat()
+{
+	if(!Joystick || JoyNumHats <= 0)
+		return 0;
+	SDL_JoystickUpdate();
+	return SDL_JoystickGetHat(Joystick, 0);
+}
+#endif
+
 /*
 ===================
 =

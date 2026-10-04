@@ -223,6 +223,9 @@ int IN_JoyButtons (void);
 int IN_JoyAxes (void);
 void IN_GetJoyDelta(int *dx,int *dy);
 int IN_GetJoyAxis(int axis);
+#ifdef MISTER_HYBRID
+int IN_JoyHat();
+#endif
 
 void IN_StartAck(AckType type);
 bool IN_CheckAck (void);

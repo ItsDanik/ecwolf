@@ -3,6 +3,9 @@
 #include <algorithm>
 
 #include "zdoomsupport.h"
+#ifdef MISTER_HYBRID
+#include "mister/mister.h"
+#endif
 
 #ifdef USE_TEXTSCREEN
 #include "textscreen.h"
@@ -220,6 +223,11 @@ bool sortwad(WadStuff const & wada, WadStuff const & wadb) {
 int I_PickIWad (WadStuff *wads, int numwads, bool showwin, int defaultiwad)
 {
 	int i;
+
+#ifdef MISTER_HYBRID
+	// No console or desktop to ask on: the list is shown through the core
+	return MiSTer_PickIWad(wads, numwads, defaultiwad);
+#endif
 
 	if (!showwin)
 	{

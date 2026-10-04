@@ -43,6 +43,9 @@
 #include "wl_agent.h"
 #include "wl_main.h"
 #include "wl_play.h"
+#ifdef MISTER_HYBRID
+#include "mister/mister.h"
+#endif
 
 static bool doWriteConfig = false;
 
@@ -184,7 +187,21 @@ void ReadConfig(void)
 	config.CreateSetting("DigitalSoundDevice", sds_SoundBlaster);
 	config.CreateSetting("N3DTempoEmulation", false);
 	config.CreateSetting("AlwaysRun", 0);
+#ifdef MISTER_HYBRID
+	// The mouse only turns
+	config.CreateSetting("MouseYAxisDisabled", 1);
+	config.CreateSetting("MiSTerControls", 0);
+	const bool resetControls = config.GetSetting("MiSTerControls")->GetInteger() < MISTER_CONTROLS_VERSION;
+	if(resetControls)
+	{
+		config.GetSetting("MiSTerControls")->SetValue(MISTER_CONTROLS_VERSION);
+		config.GetSetting("MouseYAxisDisabled")->SetValue(1);
+		config.GetSetting("MouseEnabled")->SetValue(1);
+		config.GetSetting("JoystickEnabled")->SetValue(1);
+	}
+#else
 	config.CreateSetting("MouseYAxisDisabled", 0);
+#endif
 	config.CreateSetting("SoundVolume", MAX_VOLUME);
 	config.CreateSetting("MusicVolume", MAX_VOLUME);
 	config.CreateSetting("DigitizedVolume", MAX_VOLUME);
@@ -234,6 +251,14 @@ void ReadConfig(void)
 		config.CreateSetting(joySettingName, controlScheme[i].joystick);
 		config.CreateSetting(keySettingName, SDL2Backconvert(controlScheme[i].keyboard));
 		config.CreateSetting(mseSettingName, controlScheme[i].mouse);
+#ifdef MISTER_HYBRID
+		if(resetControls)
+		{
+			config.GetSetting(joySettingName)->SetValue(controlScheme[i].joystick);
+			config.GetSetting(keySettingName)->SetValue(SDL2Backconvert(controlScheme[i].keyboard));
+			config.GetSetting(mseSettingName)->SetValue(controlScheme[i].mouse);
+		}
+#endif
 		controlScheme[i].joystick = config.GetSetting(joySettingName)->GetInteger();
 		if (config.GetSetting(keySettingBugName) != NULL) // fix a typo from older versions
 		{

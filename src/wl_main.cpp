@@ -49,6 +49,10 @@
 
 #include <clocale>
 
+#ifdef MISTER_HYBRID
+#include "mister/mister.h"
+#endif
+
 /*
 =============================================================================
 
@@ -1175,6 +1179,14 @@ static const char* CheckParameters(int argc, char *argv[], TArray<FString> &file
 		Quit();
 	}
 
+#ifdef MISTER_HYBRID
+	// The core scans out 320x200 at 15kHz, which is 4:3 on the screen
+	fullscreen = true;
+	screenWidth = fullScreenWidth = windowedScreenWidth = 320;
+	screenHeight = fullScreenHeight = windowedScreenHeight = 200;
+	vid_aspect = ASPECT_NONE;
+#endif
+
 	r_ratio = static_cast<Aspect>(CheckRatio(screenWidth, screenHeight));
 
 	if(sampleRateGiven && !audioBufferGiven)
@@ -1324,11 +1336,18 @@ int WL_Main (int argc, char *argv[])
 	catch(CNoRunExit) // Normal exit from deep code
 	{
 		CallTerminateFunctions();
+#ifdef MISTER_HYBRID
+		return MiSTer_ExitCode();
+#else
 		return 0;
+#endif
 	}
 	catch(CDoomError &error)
 	{
 		CallTerminateFunctions();
+#ifdef MISTER_HYBRID
+		MiSTer_ShowError(error.GetMessage());
+#endif
 
 #ifdef __ANDROID__
 		Printf("%s\n", error.GetMessage());

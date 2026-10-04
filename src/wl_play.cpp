@@ -3,6 +3,9 @@
 #include "c_cvars.h"
 #include "wl_def.h"
 #include "wl_menu.h"
+#ifdef MISTER_HYBRID
+#include "mister/mister.h"
+#endif
 #include "id_ca.h"
 #include "id_sd.h"
 #include "id_vl.h"
@@ -73,6 +76,39 @@ unsigned tics;
 #define CS_AxisDigital -1
 ControlScheme controlScheme[] =
 {
+#ifdef MISTER_HYBRID
+	// Defaults for the MiSTer core. Gamepad (buttons as in mister/mister.h):
+	// left stick walks and strafes, right stick turns, the d-pad walks and
+	// turns (PollJoystickButtons). Keyboard and mouse: WASD and the mouse turns.
+	{ bt_moveforward,		"Forward",		JoyAx(1),	sc_W,			-1, offsetof(TicCmd_t, controly), 1 },
+	{ bt_movebackward,		"Backward",		JoyAx(1)+1,	sc_S,			-1, offsetof(TicCmd_t, controly), 0 },
+	{ bt_strafeleft,		"Strafe Left",	JoyAx(0),	sc_A,			-1, offsetof(TicCmd_t, controlstrafe), 1 },
+	{ bt_straferight,		"Strafe Right",	JoyAx(0)+1,	sc_D,			-1, offsetof(TicCmd_t, controlstrafe), 0 },
+	{ bt_turnleft,			"Turn Left",	JoyAx(2),	sc_LeftArrow,	-1, offsetof(TicCmd_t, controlx), 1 },
+	{ bt_turnright,			"Turn Right",	JoyAx(2)+1,	sc_RightArrow,	-1, offsetof(TicCmd_t, controlx), 0 },
+	{ bt_attack,			"Attack",		MISTER_JOY_ATTACK,	sc_Control,	0,  CS_AxisDigital, 0},
+	{ bt_strafe,			"Strafe",		MISTER_JOY_STRAFE,	sc_Alt,		-1, CS_AxisDigital, 0 },
+	{ bt_run,				"Run",			MISTER_JOY_RUN,		sc_LShift,	-1, CS_AxisDigital, 0 },
+	{ bt_use,				"Use",			MISTER_JOY_USE,		sc_Space,	-1, CS_AxisDigital, 0 },
+	{ bt_slot1,				"Slot 1",		-1,			sc_1,			-1, CS_AxisDigital, 0 },
+	{ bt_slot2,				"Slot 2", 		-1,			sc_2,			-1, CS_AxisDigital, 0 },
+	{ bt_slot3,				"Slot 3",		-1,			sc_3,			-1, CS_AxisDigital, 0 },
+	{ bt_slot4,				"Slot 4",		-1,			sc_4,			-1, CS_AxisDigital, 0 },
+	{ bt_slot5,				"Slot 5",		-1,			sc_5,			-1, CS_AxisDigital, 0 },
+	{ bt_slot6,				"Slot 6",		-1,			sc_6,			-1, CS_AxisDigital, 0 },
+	{ bt_slot7,				"Slot 7",		-1,			sc_7,			-1, CS_AxisDigital, 0 },
+	{ bt_slot8,				"Slot 8",		-1,			sc_8,			-1, CS_AxisDigital, 0 },
+	{ bt_slot9,				"Slot 9",		-1,			sc_9,			-1, CS_AxisDigital, 0 },
+	{ bt_slot0,				"Slot 0",		-1,			sc_0,			-1, CS_AxisDigital, 0 },
+	{ bt_nextweapon,		"Next Weapon",	MISTER_JOY_NEXTWEAPON,	sc_R,	-1, CS_AxisDigital, 0 },
+	{ bt_prevweapon,		"Prev Weapon",	MISTER_JOY_PREVWEAPON,	-1,		-1, CS_AxisDigital, 0 },
+	{ bt_altattack,			"Alt Attack",	-1,			-1,				-1, CS_AxisDigital, 0 },
+	{ bt_reload,			"Reload",		-1,			-1,				-1, CS_AxisDigital, 0 },
+	{ bt_zoom,				"Zoom",			-1,			-1,				-1, CS_AxisDigital, 0 },
+	{ bt_automap,			"Automap",		MISTER_JOY_MAP,		sc_Tab,		-1, CS_AxisDigital, 0 },
+	{ bt_showstatusbar,		"Show Status",	-1,			-1,				-1,	CS_AxisDigital, 0 },
+	{ bt_pause,				"Pause",		-1,			sc_Pause,		-1, CS_AxisDigital, 0 },
+#else
 	{ bt_moveforward,		"Forward",		JoyAx(1),	sc_UpArrow,		-1, offsetof(TicCmd_t, controly), 1 },
 	{ bt_movebackward,		"Backward",		JoyAx(1)+1,	sc_DownArrow,	-1, offsetof(TicCmd_t, controly), 0 },
 	{ bt_strafeleft,		"Strafe Left",	JoyAx(0),	sc_Comma,		-1, offsetof(TicCmd_t, controlstrafe), 1 },
@@ -101,6 +137,7 @@ ControlScheme controlScheme[] =
 	{ bt_automap,			"Automap",		-1,			-1,				-1, CS_AxisDigital, 0 },
 	{ bt_showstatusbar,		"Show Status",	-1,			sc_Tab,			-1,	CS_AxisDigital, 0 },
 	{ bt_pause,				"Pause",		-1,			sc_Pause,		-1, CS_AxisDigital, 0 },
+#endif
 
 	// End of List
 	{ bt_nobutton,			NULL, -1, -1, -1, CS_AxisDigital, 0 }
@@ -109,8 +146,14 @@ ControlScheme &schemeAutomapKey = controlScheme[25]; // When the input system is
 
 ControlScheme amControlScheme[] =
 {
+#ifdef MISTER_HYBRID
+	// right stick up/down
+	{ bt_zoomin,			"Zoom In",		JoyAx(3),	sc_Equals,		-1, -1, 0 },
+	{ bt_zoomout,			"Zoom Out",		JoyAx(3)+1,	sc_Minus,		-1, -1, 0 },
+#else
 	{ bt_zoomin,			"Zoom In",		JoyAx(2),	sc_Equals,		-1, -1, 0 },
 	{ bt_zoomout,			"Zoom Out",		JoyAx(2)+1,	sc_Minus,		-1, -1, 0 },
+#endif
 	{ bt_panup,				"Pan Up",		JoyAx(1),	sc_UpArrow,		-1, offsetof(TicCmd_t, controlpany), 0 },
 	{ bt_pandown,			"Pan Down",		JoyAx(1)+1,	sc_DownArrow,	-1, offsetof(TicCmd_t, controlpany), 1 },
 	{ bt_panleft,			"Pan Left",		JoyAx(0),	sc_LeftArrow,	-1, offsetof(TicCmd_t, controlpanx), 0 },
@@ -256,6 +299,18 @@ void Delay(int wolfticks)
 
 void PollKeyboardButtons (void)
 {
+#ifdef MISTER_HYBRID
+	// Walking is on W and S by default; the arrow keys keep working as well
+	// (they pan the paused automap)
+	if(!(automap == AMA_Normal && (Paused & 2)))
+	{
+		if(Keyboard[sc_UpArrow])
+			control[ConsolePlayer].buttonstate[bt_moveforward] = true;
+		if(Keyboard[sc_DownArrow])
+			control[ConsolePlayer].buttonstate[bt_movebackward] = true;
+	}
+#endif
+
 	if(automap == AMA_Normal)
 	{
 		// HACK
@@ -344,6 +399,38 @@ void PollMouseButtons (void)
 
 void PollJoystickButtons (void)
 {
+#ifdef MISTER_HYBRID
+	// The core's Menu button opens the menu like Esc, it is not a control
+	// the game lets you assign
+	if(IN_JoyButtons() & (1 << MISTER_JOY_MENU))
+		control[ConsolePlayer].buttonstate[bt_esc] = true;
+
+	// The d-pad walks and turns like the arrow keys (it pans the paused
+	// automap). MiSTer also presses the d-pad for a pushed left stick, which
+	// has its own job here: a direction only counts while the stick rests on
+	// that axis.
+	{
+		static const int StickIdle = 0x1800;
+		TicCmd_t &cmd = control[ConsolePlayer];
+		const bool pan = automap == AMA_Normal && (Paused & 2);
+		const int hat = IN_JoyHat();
+		if(abs(IN_GetJoyAxis(1)) < StickIdle)
+		{
+			if(hat & SDL_HAT_UP)
+				(pan ? cmd.ambuttonstate[bt_panup] : cmd.buttonstate[bt_moveforward]) = true;
+			if(hat & SDL_HAT_DOWN)
+				(pan ? cmd.ambuttonstate[bt_pandown] : cmd.buttonstate[bt_movebackward]) = true;
+		}
+		if(abs(IN_GetJoyAxis(0)) < StickIdle)
+		{
+			if(hat & SDL_HAT_LEFT)
+				(pan ? cmd.ambuttonstate[bt_panleft] : cmd.buttonstate[bt_turnleft]) = true;
+			if(hat & SDL_HAT_RIGHT)
+				(pan ? cmd.ambuttonstate[bt_panright] : cmd.buttonstate[bt_turnright]) = true;
+		}
+	}
+#endif
+
 	if(automap == AMA_Normal)
 	{
 		// HACK
@@ -438,7 +525,19 @@ void PollMouseMove (void)
 {
 	SDL_GetRelativeMouseState(&control[ConsolePlayer].controlpanx, &control[ConsolePlayer].controlpany);
 
+#ifdef MISTER_HYBRID
+	{
+		// Mouse Sensitivity from the core's menu. What is left of a small
+		// movement after scaling is kept for the next one.
+		static int remainder = 0;
+		const int scaled = control[ConsolePlayer].controlpanx * 20 * MiSTer_MouseSensitivity() + remainder;
+		const int divisor = (21 - mousexadjustment) * 100;
+		control[ConsolePlayer].controlx += scaled / divisor;
+		remainder = scaled % divisor;
+	}
+#else
 	control[ConsolePlayer].controlx += control[ConsolePlayer].controlpanx * 20 / (21 - mousexadjustment);
+#endif
 	if(mouselook)
 	{
 		int mousey = control[ConsolePlayer].controlpany;
@@ -483,6 +582,11 @@ void PollJoystickMove (void)
 				axis >>= 2;
 			else if(control[ConsolePlayer].buttonstate[bt_run])
 				axis <<= 1;
+#ifdef MISTER_HYBRID
+			// Stick Sensitivity from the core's menu, for turning
+			if(!useam && scheme->axis == (int)offsetof(TicCmd_t, controlx))
+				axis = axis * MiSTer_StickSensitivity() / 100;
+#endif
 			if(positive ^ (rawaxis < 0))
 				*(int*)((char*)&control[ConsolePlayer] + scheme->axis) += scheme->negative ? -axis : axis;
 		}

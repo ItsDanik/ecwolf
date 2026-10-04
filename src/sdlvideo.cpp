@@ -230,6 +230,10 @@ void I_InitGraphics ()
 	if(Video)
 		return;
 
+#ifdef MISTER_HYBRID
+	SDL_SetHint ("SDL_MISTER_VIDEO_FORMAT", "INDEX8");
+#endif
+
 	if (SDL_InitSubSystem (SDL_INIT_VIDEO) < 0)
 	{
 		I_FatalError ("Could not initialize SDL video:\n%s\n", SDL_GetError());
@@ -380,7 +384,12 @@ CUSTOM_CVAR (Float, bgamma, 1.f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 #define rgamma 1.f
 #define ggamma 1.f
 #define bgamma 1.f
+#ifdef MISTER_HYBRID
+// The window surface is the paletted picture the FPGA core scans out
+#define vid_forcesurface 1
+#else
 #define vid_forcesurface 0
+#endif
 #endif
 
 // PRIVATE DATA DEFINITIONS ------------------------------------------------
@@ -389,6 +398,7 @@ CUSTOM_CVAR (Float, bgamma, 1.f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 static MiniModeInfo WinModes[] =
 {
 	{ 320, 200 },
+#ifndef MISTER_HYBRID
 	{ 320, 240 },
 	{ 400, 225 },	// 16:9
 	{ 400, 300 },
@@ -462,6 +472,7 @@ static MiniModeInfo WinModes[] =
 	{ 4480, 2520 }, // 16:9
 	{ 5120, 1440 }, // 32:9
 	{ 5120, 2880 }
+#endif
 };
 
 //static cycle_t BlitCycles;
@@ -1134,7 +1145,7 @@ void SDLFB::ResetSDLRenderer ()
 
 	// In fullscreen, set logical size according to animorphic ratio.
 	// Windowed modes are rendered to fill the window (usually 1:1)
-	if (IsFullscreen ())
+	if (IsFullscreen () && Renderer)
 	{
 		int w, h;
 		SDL_GetWindowSize (Screen, &w, &h);
