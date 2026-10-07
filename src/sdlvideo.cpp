@@ -400,7 +400,9 @@ static MiniModeInfo WinModes[] =
 	{ 320, 200 },
 #ifdef MISTER_HYBRID
 	// the video modes of the core
-	{ 640, 200 }
+	{ 640, 200 },
+	{ 320, 240 },
+	{ 640, 240 }
 #else
 	{ 320, 240 },
 	{ 400, 225 },	// 16:9

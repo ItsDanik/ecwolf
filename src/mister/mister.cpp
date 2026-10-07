@@ -36,9 +36,14 @@ int MiSTer_StickSensitivity()
 
 void MiSTer_Resolution(unsigned &width, unsigned &height)
 {
-	// 320x200 as well when there is no core to ask
-	width = MH_Open() && MH_OSD_GAME_BITS(MH_OSDStatus(), 32, 1) ? 640 : 320;
-	height = 200;
+	// 320x200, 640x200, 320x240, 640x240. 320x200 as well when there is no
+	// core to ask; 200 lines when the core is an older one without the mode
+	static const int modes[4] = { MH_MODE_320x200, MH_MODE_640x200, MH_MODE_320x240, MH_MODE_640x240 };
+	int mode = MH_Open() ? modes[MH_OSD_GAME_BITS(MH_OSDStatus(), 32, 2)] : MH_MODE_320x200;
+	if(!MH_ModeAvailable(mode))
+		mode = MH_ModeWidth(mode) == 640 ? MH_MODE_640x200 : MH_MODE_320x200;
+	width = MH_ModeWidth(mode);
+	height = MH_ModeHeight(mode);
 }
 
 bool MiSTer_UpdateResolution()

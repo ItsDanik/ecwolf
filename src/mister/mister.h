@@ -38,8 +38,8 @@ enum
 int MiSTer_MouseSensitivity();
 int MiSTer_StickSensitivity();
 
-// OSD option Resolution: the size of the screen the core is to show, 320x200
-// or 640x200. The picture is 4:3 at both sizes
+// OSD option Resolution: the size of the screen the core is to show, 320 or
+// 640 pixels in each of 200 or 240 lines. The picture is 4:3 at every size
 void MiSTer_Resolution(unsigned &width, unsigned &height);
 // Follows the Resolution option: true if the size of the screen has just
 // changed, and what is on it has to be drawn again

@@ -1006,7 +1006,7 @@ void V_CalcCleanFacs (int designwidth, int designheight, int realwidth, int real
 	int cx1, cy1, cx2, cy2;
 
 #ifdef MISTER_HYBRID
-	// The screen is 4:3 at both resolutions of the core, 640x200 included:
+	// The screen is 4:3 at every resolution of the core, 640x200 included:
 	// the pixels are not square and the two factors have nothing to do with
 	// each other
 	*cleanx = MAX(realwidth / designwidth, 1);
