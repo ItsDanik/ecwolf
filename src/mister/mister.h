@@ -62,4 +62,20 @@ void MiSTer_ShowError(const char *message);
 // game again (back to the game list) or returns to the MiSTer menu
 int MiSTer_ExitCode();
 
+// The music's chip (an AdLib card's YM3812) is in the core since host version
+// 10 of the hybrid framework: the game sends its register writes there and
+// does not work the chip out itself. OSD option FM Music: FPGA or Software.
+//
+// After the audio device has been opened. True when the core has the chip.
+bool MiSTer_FMStart();
+// Once at the start of every block of audio the game makes (with the audio
+// mutex held): follows the OSD option. True when the chip in the core is the
+// one that is heard, and the game's own need not make any sound.
+bool MiSTer_FMUpdate();
+// A register write (with the audio mutex held). `volume` is the game's
+// volume setting the write is made under (0..MAX_VOLUME): it is the level of
+// the notes started on that channel from now on, as in the game's own chip.
+// `ahead` is how many audio frames into the block being made it belongs.
+void MiSTer_FMWrite(unsigned reg, unsigned val, const int &volume, int ahead);
+
 #endif

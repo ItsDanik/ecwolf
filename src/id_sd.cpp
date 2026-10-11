@@ -162,10 +162,22 @@ static inline bool YM3812Init(int numChips, int clock, int rate)
 	return false;
 }
 
+#ifdef MISTER_HYBRID
+#include "mister/mister.h"
+// The chip in the MiSTer core (mister/mister.cpp): how many frames into the
+// block of audio being made the next write belongs, and whether that chip is
+// the one heard (the one here then makes no sound, but is kept written)
+static int fmAhead = 0;
+static bool fmInCore = false;
+#endif
+
 void YM3812Write(DBOPL::Chip &which, Bit32u reg, Bit8u val, const int &volume)
 {
 	which.SetVolume(volume);
 	which.WriteReg(reg, val);
+#ifdef MISTER_HYBRID
+	MiSTer_FMWrite(reg, val, volume, fmAhead);
+#endif
 }
 
 static inline void YM3812UpdateOne(DBOPL::Chip &which, int16_t *stream, int length)
@@ -915,13 +927,23 @@ static void SDL_IMFMusicPlayer(void *udata, Uint8 *stream, int sampleslen)
 {
 	Sint16 *stream16 = (Sint16 *) (void *) stream;    // expect correct alignment
 
+#ifdef MISTER_HYBRID
+	Sint16 *const streamStart = stream16;
+	SDL_LockMutex(audioMutex);
+	fmAhead = 0;
+	fmInCore = MiSTer_FMUpdate();
+	SDL_UnlockMutex(audioMutex);
+#else
+	static const bool fmInCore = false;
+#endif
+
 	while(1)
 	{
 		if(numreadysamples)
 		{
 			if(numreadysamples<sampleslen)
 			{
-				if(MusicMode != smm_Off || SoundMode == sdm_AdLib)
+				if(!fmInCore && (MusicMode != smm_Off || SoundMode == sdm_AdLib))
 					YM3812UpdateOne(oplChip, stream16, numreadysamples);
 
 				// Mix the emulated PC sounds into the AdLib buffer:
@@ -932,18 +954,25 @@ static void SDL_IMFMusicPlayer(void *udata, Uint8 *stream, int sampleslen)
 			}
 			else
 			{
-				if(MusicMode != smm_Off || SoundMode == sdm_AdLib)
+				if(!fmInCore && (MusicMode != smm_Off || SoundMode == sdm_AdLib))
 					YM3812UpdateOne(oplChip, stream16, sampleslen);
 
 				// Mix the emulated PC sounds into the AdLib buffer:
 				SDL_PCEmulateAndMix(stream16, sampleslen);
 
 				numreadysamples -= sampleslen;
+#ifdef MISTER_HYBRID
+				// writes the game makes between blocks are for the next one
+				fmAhead = 0;
+#endif
 				return;
 			}
 		}
 
 		SDL_LockMutex(audioMutex);
+#ifdef MISTER_HYBRID
+		fmAhead = (int)(stream16 - streamStart) / 2;
+#endif
 
 		soundTimeCounter--;
 		if(!soundTimeCounter)
@@ -1073,6 +1102,11 @@ SDL_StartSB()
 
 	Mix_ReserveChannels(2);  // reserve player and boss weapon channels
 	Mix_GroupChannels(2, MIX_CHANNELS-1, 1); // group remaining channels
+
+#ifdef MISTER_HYBRID
+	if(MiSTer_FMStart())
+		printf("S_Init: the FM chip is in the MiSTer core\n");
+#endif
 
 	// Init music
 	if(YM3812Init(1,3579545,AudioSpec.frequency))
