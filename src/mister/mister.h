@@ -41,9 +41,25 @@ int MiSTer_StickSensitivity();
 // OSD option Resolution: the size of the screen the core is to show, 320 or
 // 640 pixels in each of 200 or 240 lines. The picture is 4:3 at every size
 void MiSTer_Resolution(unsigned &width, unsigned &height);
-// Follows the Resolution option: true if the size of the screen has just
-// changed, and what is on it has to be drawn again
+// Follows the Resolution option, and in 240 lines the HUD margin: true if
+// the size of the screen or the place of the status bar has just changed,
+// and what is on it has to be drawn again
 bool MiSTer_UpdateResolution();
+
+// 240 lines (hybrid/CLAUDE.md, "240 lines and HUD margins"). The 200 lines of
+// the game's 2D graphics are not stretched to the screen but centred on it;
+// the view fills the screen from the top edge to the bottom one, and the
+// status bar keeps its size and is drawn over it, the player's HUD margin
+// (OSD option HUD (Bottom)) above the bottom edge.
+//
+// The margin in lines of a 240-line screen, as the layout was last made for;
+// SetViewSize() reads it anew (`read`)
+int MiSTer_HudMargin(bool read = false);
+// Set while the status bar's graphics are drawn (wolf_sbar.cpp)
+extern bool MiSTer_HudDrawing;
+// Where line 0 of the 200 virtual lines goes on a 240-line screen: 20 for
+// what is centred, and for the status bar its margin above the bottom
+int MiSTer_VirtualTop();
 
 // Frame pacing. The core shows 59.6 fields per second and the game runs 70
 // tics per second, so a frame is not a whole number of tics. Waits for the
@@ -54,9 +70,18 @@ bool MiSTer_FrameTics(unsigned &tics, int &frac);
 // The next call starts counting anew, after the game stood still
 void MiSTer_ResetFrameTics();
 
-// Lets the player pick the game on the screen. Returns the index, -1 to quit
-int MiSTer_PickIWad(WadStuff *wads, int numwads, int defaultiwad);
-// Shows the error on the screen until a button is pressed
+// Cheats page of the OSD: God Mode on (1) or off (0), and the triggers
+// (MH_OSDTriggers(), T[56] and T[57]) selected since the last call, once a
+// frame while the game is played (wl_debug.cpp)
+int MiSTer_GodMode();
+enum { MISTER_CHEAT_GIVEALL = 1, MISTER_CHEAT_NEXTLEVEL = 2 };
+int MiSTer_CheatTriggers();
+
+// The game to start (MH_PickGame()) of the ones ECWolf found, by their
+// iwadinfo Autoname: the menu entry's, or the player's pick from a list.
+// Returns the index, -1 to quit (after a message when none is there)
+int MiSTer_PickIWad(WadStuff *wads, const char *const *autonames, int numwads);
+// Shows the error on the screen until the player leaves the core
 void MiSTer_ShowError(const char *message);
 // Exit code of the process after the player quit: the launcher starts the
 // game again (back to the game list) or returns to the MiSTer menu

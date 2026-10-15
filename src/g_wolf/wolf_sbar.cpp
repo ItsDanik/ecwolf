@@ -18,6 +18,22 @@
 #include "a_keys.h"
 #include "wl_iwad.h"
 #include "wl_net.h"
+#ifdef MISTER_HYBRID
+#include "mister/mister.h"
+#endif
+
+// The status bar's graphics. On a 240-line screen of the MiSTer core they are
+// drawn the player's HUD margin above the bottom edge (mister.h)
+static void SbarGraphic(FTexture *tex, int x, int y, MenuOffset menu=MENU_NONE, FRemapTable *remap=NULL)
+{
+#ifdef MISTER_HYBRID
+	MiSTer_HudDrawing = true;
+#endif
+	VWB_DrawGraphic(tex, x, y, menu, remap);
+#ifdef MISTER_HYBRID
+	MiSTer_HudDrawing = false;
+#endif
+}
 
 /*
 =============================================================================
@@ -135,12 +151,12 @@ DBaseStatusBar *CreateStatusBar_Wolf3D() { return new WolfStatusBar(); }
 
 void WolfStatusBar::StatusDrawPic (unsigned x, unsigned y, const char* pic)
 {
-	VWB_DrawGraphic(TexMan(pic), x, 200-(STATUSLINES-y));
+	SbarGraphic(TexMan(pic), x, 200-(STATUSLINES-y));
 }
 
 void WolfStatusBar::StatusDrawFace(FTexture *pic)
 {
-	VWB_DrawGraphic(pic, StatusBarConfig.Mugshot.X, 200-(STATUSLINES-StatusBarConfig.Mugshot.Y));
+	SbarGraphic(pic, StatusBarConfig.Mugshot.X, 200-(STATUSLINES-StatusBarConfig.Mugshot.Y));
 }
 
 
@@ -324,7 +340,7 @@ void WolfStatusBar::LatchString (int x, int y, unsigned width, const FString &st
 	FRemapTable *remap = HudFont->GetColorTranslation(CR_UNTRANSLATED);
 	for(unsigned int i = MAX<int>(0, (int)(str.Len()-width));i < str.Len();++i)
 	{
-		VWB_DrawGraphic(HudFont->GetChar(str[i], &cwidth), x, y, MENU_NONE, remap);
+		SbarGraphic(HudFont->GetChar(str[i], &cwidth), x, y, MENU_NONE, remap);
 		x += cwidth;
 	}
 }
@@ -442,7 +458,7 @@ void WolfStatusBar::DrawWeapon (void)
 	)
 		return;
 
-	VWB_DrawGraphic(TexMan(players[ConsolePlayer].ReadyWeapon->icon), StatusBarConfig.Weapon.X, 200-(STATUSLINES-StatusBarConfig.Weapon.Y));
+	SbarGraphic(TexMan(players[ConsolePlayer].ReadyWeapon->icon), StatusBarConfig.Weapon.X, 200-(STATUSLINES-StatusBarConfig.Weapon.Y));
 }
 
 
@@ -528,7 +544,7 @@ void WolfStatusBar::RefreshBackground(bool noborder)
 	if(viewsize == 21 && ingame)
 		return;
 
-	VWB_DrawGraphic(TexMan("STBACK"), 0, 160);
+	SbarGraphic(TexMan("STBACK"), 0, 160);
 }
 
 void WolfStatusBar::DrawStatusBar()
@@ -536,7 +552,7 @@ void WolfStatusBar::DrawStatusBar()
 	if(viewsize == 21 && ingame)
 		return;
 
-	VWB_DrawGraphic(TexMan("STBAR"), 0, 160);
+	SbarGraphic(TexMan("STBAR"), 0, 160);
 	DrawFace ();
 	DrawHealth ();
 	DrawLives ();

@@ -28,6 +28,9 @@
 #include "wl_iwad.h"
 #include "wl_net.h"
 #include "wl_play.h"
+#ifdef MISTER_HYBRID
+#include "mister/mister.h"
+#endif
 #include "w_wad.h"
 #include "thingdef/thingdef.h"
 #include "g_shared/a_keys.h"
@@ -607,12 +610,50 @@ static void DebugGod(bool noah)
 ================
 */
 
+#ifdef MISTER_HYBRID
+// The Cheats page of the core's OSD (core/ECWolf.sv): God Mode is followed
+// when it changes (the game's own cheat keys can still switch it between),
+// the triggers do their thing once each time. No message that waits for a
+// key: the player is in the OSD.
+static void MiSTerCheats()
+{
+	static int lastGodMode = -1;
+	const int god = MiSTer_GodMode();
+	if(god != lastGodMode)
+	{
+		lastGodMode = god;
+		godmode = god;
+		printf("mister: god mode %s\n", god ? "on" : "off");
+	}
+
+	const int triggers = MiSTer_CheatTriggers();
+	if(triggers & MISTER_CHEAT_GIVEALL)
+	{
+		player_t &player = players[ConsolePlayer];
+		GiveAllWeaponsAndAmmo(player);
+		P_GiveKeys(player.mo, 101);
+		SD_PlaySound("misc/1up");
+		StatusBar->DrawStatusBar();
+		printf("mister: weapons, ammo and keys given\n");
+	}
+	if(triggers & MISTER_CHEAT_NEXTLEVEL)
+	{
+		playstate = ex_completed;
+		printf("mister: next level\n");
+	}
+}
+#endif
+
 void CheckDebugKeys()
 {
 	static bool DebugOk = false;
 
 	if (screenfaded || demoplayback) // don't do anything with a faded screen
 		return;
+
+#ifdef MISTER_HYBRID
+	MiSTerCheats();
+#endif
 
 	if(IWad::CheckGameFilter(NAME_Wolf3D))
 	{

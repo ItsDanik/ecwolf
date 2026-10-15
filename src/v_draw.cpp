@@ -63,6 +63,9 @@
 #include "r_data/colormaps.h"
 #include "c_cvars.h"
 #include "wl_main.h"
+#ifdef MISTER_HYBRID
+#include "mister/mister.h"
+#endif
 
 static inline SDWORD DivScale32(const SQWORD a, const SDWORD b)
 {
@@ -771,6 +774,20 @@ void DCanvas::VirtualToRealCoords(double &x, double &y, double &w, double &h,
 	int myratio = handleaspect ? CheckRatio (Width, Height) : 0;
 	double right = x + w;
 	double bottom = y + h;
+
+#ifdef MISTER_HYBRID
+	// A 240-line screen of the core: the 200 virtual lines are not stretched
+	// to it but centred, the status bar's at the HUD margin (mister.h)
+	if (vheight == 200 && Height % 240 == 0)
+	{
+		const double lines = Height / 240;
+		x = x * Width / vwidth;
+		w = right * Width / vwidth - x;
+		y = (y + MiSTer_VirtualTop()) * lines;
+		h = (bottom + MiSTer_VirtualTop()) * lines - y;
+		return;
+	}
+#endif
 
 	if (AspectCorrection[myratio].isWide)
 	{ // The target surface is either 16:9 or 16:10, so expand the

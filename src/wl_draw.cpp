@@ -1384,6 +1384,13 @@ void R_RenderView()
 
 	DrawPlayerWeapon ();    // draw player's hands
 
+#ifdef MISTER_HYBRID
+	// 240 lines: the view goes on behind the status bar, which is drawn over
+	// every frame
+	if(viewsize < 21 && statusbary2 < viewscreeny + viewheight)
+		StatusBar->DrawStatusBar();
+#endif
+
 	if((control[ConsolePlayer].buttonstate[bt_showstatusbar] || control[ConsolePlayer].buttonheld[bt_showstatusbar]) && viewsize == 21)
 	{
 		ingame = false;

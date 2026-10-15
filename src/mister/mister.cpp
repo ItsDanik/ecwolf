@@ -6,6 +6,7 @@
 #include "id_vl.h"
 #include "id_vh.h"
 #include "wl_main.h"
+#include "wl_play.h"
 #include "wl_iwad.h"
 #include "tarray.h"
 #include "zstring.h"
@@ -15,7 +16,8 @@
 #include <string.h>
 
 #define EXIT_TO_MENU 0
-#define EXIT_RESTART 42
+#define EXIT_RESTART 42 // danik_hybrid_launch.sh starts the game again
+#define EXIT_RELOADED 43 // the same, after the core has settled
 
 static const char* const TITLE = "ECWolf";
 
@@ -36,6 +38,16 @@ int MiSTer_StickSensitivity()
 	return percent[MH_OSD_GAME_BITS(MH_OSDStatus(), 28, 4)];
 }
 
+int MiSTer_GodMode()
+{
+	return MH_OSD_GAME_BITS(MH_OSDStatus(), 35, 1);
+}
+
+int MiSTer_CheatTriggers()
+{
+	return MH_OSDTriggers();
+}
+
 void MiSTer_Resolution(unsigned &width, unsigned &height)
 {
 	// 320x200, 640x200, 320x240, 640x240. 320x200 as well when there is no
@@ -46,6 +58,8 @@ void MiSTer_Resolution(unsigned &width, unsigned &height)
 		mode = MH_ModeWidth(mode) == 640 ? MH_MODE_640x200 : MH_MODE_320x200;
 	width = MH_ModeWidth(mode);
 	height = MH_ModeHeight(mode);
+	// the HUD (Bottom) option is greyed out in 200 lines
+	MH_SetMenuMask(height == 200 ? 1 : 0);
 }
 
 bool MiSTer_UpdateResolution()
@@ -53,7 +67,14 @@ bool MiSTer_UpdateResolution()
 	unsigned width, height;
 	MiSTer_Resolution(width, height);
 	if(width == screenWidth && height == screenHeight)
-		return false;
+	{
+		// the status bar follows the HUD margin
+		const int margin = MiSTer_HudMargin();
+		if(height % 240 != 0 || MiSTer_HudMargin(true) == margin)
+			return false;
+		NewViewSize(viewsize);
+		return true;
+	}
 
 	screenWidth = fullScreenWidth = windowedScreenWidth = width;
 	screenHeight = fullScreenHeight = windowedScreenHeight = height;
@@ -61,6 +82,24 @@ bool MiSTer_UpdateResolution()
 	VH_Startup(); // Recalculate fizzlefade stuff.
 	VL_SetVGAPlaneMode();
 	return true;
+}
+
+bool MiSTer_HudDrawing = false;
+static int HudMargin = MH_HUD_DEFAULT;
+
+int MiSTer_HudMargin(bool read)
+{
+	if(read)
+	{
+		int top;
+		MH_HudMargins(&top, &HudMargin);
+	}
+	return HudMargin;
+}
+
+int MiSTer_VirtualTop()
+{
+	return MiSTer_HudDrawing ? 40 - HudMargin : 20;
 }
 
 static uint32_t LastField;
@@ -101,23 +140,95 @@ bool MiSTer_FrameTics(unsigned &tics, int &frac)
 	return true;
 }
 
-int MiSTer_PickIWad(WadStuff *wads, int numwads, int defaultiwad)
+// The games with a menu entry of their own (package/games.txt), and the
+// shareware and demo their entries start when the full game is not there:
+// ECWolf's game (iwadinfo.txt, Autoname) as the core's set name ECWolf_<id>.
+// The 3-episode Wolfenstein (*.WL3) is ECWolf's "Wolf.Wolf3D.Registered" too.
+struct MiSTerGame
 {
-	if(!MH_Open())
-		return defaultiwad;
+	const char *autoname;
+	const char *id;
+	const char *name;
+	const char *shareware_of;
+	const char *pattern; // its files, for a game that was not found
+	const char *missing;
+};
+static const MiSTerGame Games[] =
+{
+	{ "Wolf.Wolf3D.Registered", "WL", "Wolfenstein 3D", NULL, "*.WL6",
+		"Wolfenstein 3D was not found. Copy its files (*.WL6 or *.WL3, or *.WL1 "
+		"of the shareware) to %s/ on the SD card." },
+	{ "Wolf.Wolf3D.Shareware", "WL1", "Wolfenstein 3D Shareware", "WL", NULL, NULL },
+	{ "Wolf.Spear.Commercial", "SOD", "Spear of Destiny", NULL, "*.SOD",
+		"Spear of Destiny was not found. Copy its files (*.SOD, or *.SDM of the "
+		"demo) to %s/ on the SD card." },
+	{ "Wolf.Spear.Demo", "SDM", "Spear of Destiny Demo", "SOD", NULL, NULL },
+	{ "Wolf.Spear.Danger", "SD2", "SoD: Return to Danger", NULL, "*.SD2",
+		"Return to Danger was not found. Copy its files (*.SD2) and those of "
+		"Spear of Destiny (*.SOD) to %s/ on the SD card." },
+	{ "Wolf.Spear.Challenge", "SD3", "SoD: Ultimate Challenge", NULL, "*.SD3",
+		"Ultimate Challenge was not found. Copy its files (*.SD3) and those of "
+		"Spear of Destiny (*.SOD) to %s/ on the SD card." },
+};
+#define NO_GAME "No game data found. Copy the files of Wolfenstein 3D (*.WL6, *.WL3, " \
+	"*.WL1) or Spear of Destiny (*.SOD, *.SD2, *.SD3, *.SDM) to %s/ on the SD card."
 
-	TArray<const char*> items;
+int MiSTer_PickIWad(WadStuff *wads, const char *const *autonames, int numwads)
+{
+	// The games ECWolf found, each found (no files to look for), then the
+	// games of a menu entry it did not find, with their message. A game found
+	// twice (a level set) has the menu entry the first time only.
+	TArray<mh_game> games;
+	TArray<int> wad;
+	TArray<FString> ids;
+	static const char *const none[] = { NULL };
+	bool seen[countof(Games)] = {};
 	for(int i = 0;i < numwads;++i)
-		items.Push(wads[i].Name.GetChars());
-	items.Push("Exit to the MiSTer menu");
+		ids.Push(autonames[i]);
+	for(int i = 0;i < numwads;++i)
+	{
+		mh_game game = { ids[i].GetChars(), wads[i].Name.GetChars(), none, NULL, NULL };
+		for(unsigned g = 0;g < countof(Games);++g)
+		{
+			if(strcmp(autonames[i], Games[g].autoname) == 0 && !seen[g])
+			{
+				seen[g] = true;
+				game.id = Games[g].id;
+				game.name = Games[g].name;
+				game.shareware_of = Games[g].shareware_of;
+			}
+		}
+		games.Push(game);
+		wad.Push(i);
+	}
+	static const char *files[countof(Games)][2];
+	for(unsigned g = 0;g < countof(Games);++g)
+	{
+		if(seen[g] || Games[g].pattern == NULL)
+			continue;
+		files[g][0] = Games[g].pattern;
+		files[g][1] = NULL;
+		mh_game game = { Games[g].id, Games[g].name, files[g], NULL, Games[g].missing };
+		games.Push(game);
+		wad.Push(-1);
+	}
 
-	int pick = MH_UI_Menu(TITLE, "Select a game:", &items[0], items.Size(), defaultiwad);
-	if(pick < 0 || pick >= numwads)
+	int listed = 0;
+	int pick = MH_PickGame(games.Size() ? &games[0] : NULL, games.Size(), NULL, NO_GAME, &listed);
+	if(pick < 0)
 		return -1;
-
-	PickedFromList = true;
-	MH_UI_Message(TITLE, FString("Loading ") + wads[pick].Name + "...", 0);
-	return pick;
+	if(wad[pick] < 0)
+	{
+		// some of its files are there, not all of them
+		FString text;
+		text.Format(games[pick].missing, MH_GamePath());
+		MiSTer_ShowError(text);
+		return -1;
+	}
+	PickedFromList = listed != 0;
+	if(MH_Open())
+		MH_UI_Message(TITLE, FString("Loading ") + games[pick].name + "...", 0);
+	return wad[pick];
 }
 
 void MiSTer_ShowError(const char *message)
@@ -128,6 +239,9 @@ void MiSTer_ShowError(const char *message)
 
 int MiSTer_ExitCode()
 {
+	// The player loaded the core again while the game ran
+	if(MH_CoreReloaded())
+		return EXIT_RELOADED;
 	// Not if we are quitting because another core was loaded
 	if(PickedFromList && MH_Open())
 		return EXIT_RESTART;

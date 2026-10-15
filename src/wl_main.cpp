@@ -571,6 +571,14 @@ static void SetViewSize (unsigned int screenWidth, unsigned int screenHeight)
 	}
 
 	statusbary1 = statusbary1*screenHeight/200;
+#ifdef MISTER_HYBRID
+	// 240 lines: the status bar the HUD margin above the bottom edge, the
+	// view behind it (mister.h)
+	const bool tall = screenHeight % 240 == 0;
+	if(tall)
+		statusbary2 = screenHeight - (200 - statusbary2 + MiSTer_HudMargin(true))*screenHeight/240;
+	else
+#endif
 	if(AspectCorrection[r_ratio].tallscreen)
 		statusbary2 = ((statusbary2 - 100)*screenHeight*3)/AspectCorrection[r_ratio].baseHeight + screenHeight/2
 			+ (screenHeight - screenHeight*AspectCorrection[r_ratio].multiplier/48)/2;
@@ -588,6 +596,10 @@ static void SetViewSize (unsigned int screenWidth, unsigned int screenHeight)
 	{
 		width = screenWidth;
 		height = statusbary2-statusbary1;
+#ifdef MISTER_HYBRID
+		if(tall)
+			height = screenHeight;
+#endif
 	}
 	else
 	{

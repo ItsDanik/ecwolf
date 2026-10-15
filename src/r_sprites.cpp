@@ -654,7 +654,14 @@ void R_DrawPlayerSprite(AActor *actor, const Frame *frame, fixed offsetX, fixed 
 		colormap = &NormalLight.Maps[GETPALOOKUP(0, shade)<<8];
 	}
 
+#ifdef MISTER_HYBRID
+	// 240 lines, the view behind the status bar: the weapon on top of the
+	// bar, as when the view ends there (80 of the 160 lines below the middle)
+	const fixed scale = viewsize < 21 && statusbary2 < viewscreeny + viewheight
+		? (statusbary2<<FRACBITS) - 80*pspriteyscale : viewheight<<(FRACBITS-1);
+#else
 	const fixed scale = viewheight<<(FRACBITS-1);
+#endif
 
 	const fixed centeringOffset = (centerx - 2*centerxwide)<<FRACBITS;
 	const fixed leftedge = FixedMul((160<<FRACBITS) - fixed(tex->GetScaledLeftOffsetDouble()*FRACUNIT) + offsetX, pspritexscale) + centeringOffset;
