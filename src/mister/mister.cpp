@@ -157,21 +157,21 @@ static const MiSTerGame Games[] =
 {
 	{ "Wolf.Wolf3D.Registered", "WL", "Wolfenstein 3D", NULL, "*.WL6",
 		"Wolfenstein 3D was not found. Copy its files (*.WL6 or *.WL3, or *.WL1 "
-		"of the shareware) to %s/ on the SD card." },
+		"of the shareware) to %s/." },
 	{ "Wolf.Wolf3D.Shareware", "WL1", "Wolfenstein 3D Shareware", "WL", NULL, NULL },
 	{ "Wolf.Spear.Commercial", "SOD", "Spear of Destiny", NULL, "*.SOD",
 		"Spear of Destiny was not found. Copy its files (*.SOD, or *.SDM of the "
-		"demo) to %s/ on the SD card." },
+		"demo) to %s/." },
 	{ "Wolf.Spear.Demo", "SDM", "Spear of Destiny Demo", "SOD", NULL, NULL },
 	{ "Wolf.Spear.Danger", "SD2", "SoD: Return to Danger", NULL, "*.SD2",
 		"Return to Danger was not found. Copy its files (*.SD2) and those of "
-		"Spear of Destiny (*.SOD) to %s/ on the SD card." },
+		"Spear of Destiny (*.SOD) to %s/." },
 	{ "Wolf.Spear.Challenge", "SD3", "SoD: Ultimate Challenge", NULL, "*.SD3",
 		"Ultimate Challenge was not found. Copy its files (*.SD3) and those of "
-		"Spear of Destiny (*.SOD) to %s/ on the SD card." },
+		"Spear of Destiny (*.SOD) to %s/." },
 };
 #define NO_GAME "No game data found. Copy the files of Wolfenstein 3D (*.WL6, *.WL3, " \
-	"*.WL1) or Spear of Destiny (*.SOD, *.SD2, *.SD3, *.SDM) to %s/ on the SD card."
+	"*.WL1) or Spear of Destiny (*.SOD, *.SD2, *.SD3, *.SDM) to %s/."
 
 int MiSTer_PickIWad(WadStuff *wads, const char *const *autonames, int numwads)
 {
