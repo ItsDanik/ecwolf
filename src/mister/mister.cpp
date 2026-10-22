@@ -173,21 +173,49 @@ static const MiSTerGame Games[] =
 #define NO_GAME "No game data found. Copy the files of Wolfenstein 3D (*.WL6, *.WL3, " \
 	"*.WL1) or Spear of Destiny (*.SOD, *.SD2, *.SD3, *.SDM) to %s/."
 
+// A file ECWolf found in the game's folder ("./VSWAP.WL6"): its name there,
+// else NULL
+static const char *InGameFolder(const FString &path)
+{
+	const char *p = path.GetChars();
+	return strncmp(p, "./", 2) == 0 && p[2] != 0 && strchr(p + 2, '/') == NULL ? p + 2 : NULL;
+}
+
 int MiSTer_PickIWad(WadStuff *wads, const char *const *autonames, int numwads)
 {
-	// The games ECWolf found, each found (no files to look for), then the
-	// games of a menu entry it did not find, with their message. A game found
-	// twice (a level set) has the menu entry the first time only.
+	// The games ECWolf found, each with its files, which MH_PickGame() looks
+	// for again for the lines under the game's logo ("Checking Game Data...",
+	// "Game Data OK"); one found outside the game's folder ($PROGDIR) with
+	// none to look for. Then the games of a menu entry ECWolf did not find,
+	// with their message. A game found twice (a level set) has the menu entry
+	// the first time only.
 	TArray<mh_game> games;
 	TArray<int> wad;
 	TArray<FString> ids;
+	TArray<const char*> files;
+	TArray<unsigned> filesAt;
 	static const char *const none[] = { NULL };
 	bool seen[countof(Games)] = {};
 	for(int i = 0;i < numwads;++i)
+	{
 		ids.Push(autonames[i]);
+		unsigned j = 0;
+		while(j < wads[i].Path.Size() && InGameFolder(wads[i].Path[j]))
+			++j;
+		if(j == 0 || j < wads[i].Path.Size())
+		{
+			filesAt.Push(~0u);
+			continue;
+		}
+		filesAt.Push(files.Size());
+		for(j = 0;j < wads[i].Path.Size();++j)
+			files.Push(InGameFolder(wads[i].Path[j]));
+		files.Push(NULL);
+	}
 	for(int i = 0;i < numwads;++i)
 	{
-		mh_game game = { ids[i].GetChars(), wads[i].Name.GetChars(), none, NULL, NULL };
+		mh_game game = { ids[i].GetChars(), wads[i].Name.GetChars(),
+			filesAt[i] != ~0u ? &files[filesAt[i]] : none, NULL, NULL };
 		for(unsigned g = 0;g < countof(Games);++g)
 		{
 			if(strcmp(autonames[i], Games[g].autoname) == 0 && !seen[g])
@@ -201,14 +229,14 @@ int MiSTer_PickIWad(WadStuff *wads, const char *const *autonames, int numwads)
 		games.Push(game);
 		wad.Push(i);
 	}
-	static const char *files[countof(Games)][2];
+	static const char *patterns[countof(Games)][2];
 	for(unsigned g = 0;g < countof(Games);++g)
 	{
 		if(seen[g] || Games[g].pattern == NULL)
 			continue;
-		files[g][0] = Games[g].pattern;
-		files[g][1] = NULL;
-		mh_game game = { Games[g].id, Games[g].name, files[g], NULL, Games[g].missing };
+		patterns[g][0] = Games[g].pattern;
+		patterns[g][1] = NULL;
+		mh_game game = { Games[g].id, Games[g].name, patterns[g], NULL, Games[g].missing };
 		games.Push(game);
 		wad.Push(-1);
 	}
@@ -225,9 +253,9 @@ int MiSTer_PickIWad(WadStuff *wads, const char *const *autonames, int numwads)
 		MiSTer_ShowError(text);
 		return -1;
 	}
+	// the game's logo and "Loading <name>..." came with the pick (host
+	// version 17)
 	PickedFromList = listed != 0;
-	if(MH_Open())
-		MH_UI_Message(TITLE, FString("Loading ") + games[pick].name + "...", 0);
 	return wad[pick];
 }
 
